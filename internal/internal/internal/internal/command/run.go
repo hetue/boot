@@ -58,7 +58,7 @@ func (r *Run) run(ctx context.Context) (err error) {
 	fields := gox.Fields[any]{
 		field.New("steps", r.stepsNames()),
 	}
-	r.logger.Info("插件执行开始", fields...)
+	r.logger.Info("插件执行开始", fields[0], fields[1:]...)
 
 	// 设置整体超时时间
 	timeout, cancel := context.WithTimeout(ctx, r.retry.Timeout)
@@ -79,7 +79,7 @@ func (r *Run) run(ctx context.Context) (err error) {
 	if nil != err {
 		r.logger.Error("插件执行出错", field.Error(err))
 	} else {
-		r.logger.Info("插件执行成功")
+		r.logger.Info("插件执行成功", fields[0], fields[1:]...)
 	}
 
 	return
@@ -125,17 +125,17 @@ func (r *Run) executeStep(ctx *context.Context, step kernel.Step) (err error) {
 		field.New("counts", counts),
 	}
 
-	r.logger.Info("步骤执行开始", fields...)
+	r.logger.Info("步骤执行开始", fields[0], fields[1:]...)
 	for count := 0; count < counts; count++ {
 		if err = step.Run(ctx); (nil == err) || (0 == count && !retry) {
 			break
 		}
 
 		backoff := rand.New().Duration().Between(time.Second, r.retry.Backoff).Build().Generate().Truncate(time.Second)
-		r.logger.Info(fmt.Sprintf("步骤第%d次执行遇到错误", count+1), fields.Add(field.Error(err))...)
-		r.logger.Info(fmt.Sprintf("休眠%s，继续执行步骤", backoff), fields...)
+		r.logger.Info(fmt.Sprintf("步骤第%d次执行遇到错误", count+1), field.Error(err), fields...)
+		r.logger.Info(fmt.Sprintf("休眠%s，继续执行步骤", backoff), fields[0], fields[1:]...)
 		time.Sleep(backoff)
-		r.logger.Info(fmt.Sprintf("步骤重试第%d次执行", count+2), fields...)
+		r.logger.Info(fmt.Sprintf("步骤重试第%d次执行", count+2), fields[0], fields[1:]...)
 
 		if count != counts-1 {
 			err = nil
@@ -144,11 +144,11 @@ func (r *Run) executeStep(ctx *context.Context, step kernel.Step) (err error) {
 
 	switch {
 	case nil != err && retry:
-		r.logger.Error("步骤执行尝试所有重试后出错", fields.Add(field.Error(err))...)
+		r.logger.Error("步骤执行尝试所有重试后出错", field.Error(err), fields...)
 	case nil != err:
-		r.logger.Error("步骤执行出错", fields.Add(field.Error(err))...)
+		r.logger.Error("步骤执行出错", field.Error(err), fields...)
 	default:
-		r.logger.Info("步骤执行成功", fields...)
+		r.logger.Info("步骤执行成功", fields[0], fields[1:]...)
 	}
 
 	return
